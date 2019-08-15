@@ -312,7 +312,7 @@ func setProjectIamPolicy(policy *cloudresourcemanager.Policy, config *Config, pi
 }
 
 // Get a cloudresourcemanager.Policy from a schema.ResourceData
-func getResourceIamPolicy(d *schema.ResourceData) (*cloudresourcemanager.Policy, error) {
+func getResourceIamPolicy(d TerraformResourceGetter) (*cloudresourcemanager.Policy, error) {
 	ps := d.Get("policy_data").(string)
 	// The policy string is just a marshaled cloudresourcemanager.Policy.
 	policy := &cloudresourcemanager.Policy{}
@@ -324,7 +324,7 @@ func getResourceIamPolicy(d *schema.ResourceData) (*cloudresourcemanager.Policy,
 
 // Get the previous cloudresourcemanager.Policy from a schema.ResourceData if the
 // resource has changed
-func getPrevResourceIamPolicy(d *schema.ResourceData) (*cloudresourcemanager.Policy, error) {
+func getPrevResourceIamPolicy(d TerraformResourceGetter) (*cloudresourcemanager.Policy, error) {
 	var policy *cloudresourcemanager.Policy = &cloudresourcemanager.Policy{}
 	if d.HasChange("policy_data") {
 		v, _ := d.GetChange("policy_data")

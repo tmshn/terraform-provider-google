@@ -19,9 +19,19 @@ import (
 
 type TerraformResourceData interface {
 	HasChange(string) bool
+	GetChange(string) (interface{}, interface{})
+	Get(string) interface{}
 	GetOk(string) (interface{}, bool)
 	Set(string, interface{}) error
 	SetId(string)
+	Id() string
+}
+
+type TerraformResourceGetter interface {
+	HasChange(string) bool
+	GetChange(string) (interface{}, interface{})
+	Get(string) interface{}
+	GetOk(string) (interface{}, bool)
 	Id() string
 }
 
@@ -60,7 +70,7 @@ func getRegionFromInstanceState(is *terraform.InstanceState, config *Config) (st
 // getProject reads the "project" field from the given resource data and falls
 // back to the provider's value if not given. If the provider's value is not
 // given, an error is returned.
-func getProject(d TerraformResourceData, config *Config) (string, error) {
+func getProject(d TerraformResourceGetter, config *Config) (string, error) {
 	return getProjectFromSchema("project", d, config)
 }
 

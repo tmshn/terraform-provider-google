@@ -210,7 +210,7 @@ func parseZonalFieldValue(resourceType, fieldValue, projectSchemaField, zoneSche
 	}, nil
 }
 
-func getProjectFromSchema(projectSchemaField string, d TerraformResourceData, config *Config) (string, error) {
+func getProjectFromSchema(projectSchemaField string, d TerraformResourceGetter, config *Config) (string, error) {
 	res, ok := d.GetOk(projectSchemaField)
 	if ok && projectSchemaField != "" {
 		return res.(string), nil
