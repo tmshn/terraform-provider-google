@@ -47,6 +47,11 @@ func resourceGoogleProjectIamPolicy() *schema.Resource {
 				Type:       schema.TypeString,
 				Computed:   true,
 			},
+			"complete_policy": &schema.Schema{
+				Deprecated: "This field will be removed alongside the authoritative field, since it will be equivalent to policy_data field.",
+				Type:       schema.TypeString,
+				Computed:   true,
+			},
 			"disable_project": &schema.Schema{
 				Deprecated: "This will be removed with the authoritative field. Use lifecycle.prevent_destroy instead.",
 				Type:       schema.TypeBool,
@@ -125,6 +130,11 @@ func resourceGoogleProjectIamPolicyRead(d *schema.ResourceData, meta interface{}
 	if err != nil {
 		return err
 	}
+	completePolicyBytes, err := json.Marshal(p)
+	if err != nil {
+		return fmt.Errorf("Error marshaling IAM policy: %v", err)
+	}
+	d.Set("complete_policy", string(completePolicyBytes))
 
 	var bindings []*cloudresourcemanager.Binding
 	if v, ok := d.GetOk("restore_policy"); ok {
