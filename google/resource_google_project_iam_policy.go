@@ -58,7 +58,77 @@ func resourceGoogleProjectIamPolicy() *schema.Resource {
 				Optional:   true,
 			},
 		},
+		CustomizeDiff: customDiffIamPolicy,
 	}
+}
+
+func customDiffIamPolicy(d *schema.ResourceDiff, meta interface{}) error {
+	// Compute `complete_policy` and `restore_policy` fields at the plan phase
+	// as same logic as resourceGoogleProjectIamPolicyUpdate to see planned changes
+	log.Printf("[DEBUG]: Updating google_project_iam_policy")
+	config := meta.(*Config)
+	pid, err := getProject(d, config)
+	if err != nil {
+		return err
+	}
+
+	// Get the policy in the template
+	p, err := getResourceIamPolicy(d)
+	if err != nil {
+		return fmt.Errorf("Could not get valid 'policy_data' from resource: %v", err)
+	}
+	pBytes, _ := json.Marshal(p)
+	log.Printf("[DEBUG] Got policy from config: %s", string(pBytes))
+
+	// An authoritative policy is applied without regard for any existing IAM
+	// policy.
+	if v, ok := d.GetOk("authoritative"); ok && v.(bool) {
+		log.Printf("[DEBUG] Updating authoritative IAM policy for project %q", pid)
+		err = d.SetNew("complete_policy", p)
+		if err != nil {
+			return fmt.Errorf("Error setting project IAM policy: %v", err)
+		}
+		d.SetNew("restore_policy", "")
+	} else {
+		log.Printf("[DEBUG] Updating non-authoritative IAM policy for project %q", pid)
+		// Get the previous policy from state
+		pp, err := getPrevResourceIamPolicy(d)
+		if err != nil {
+			return fmt.Errorf("Error retrieving previous version of changed project IAM policy: %v", err)
+		}
+		ppBytes, _ := json.Marshal(pp)
+		log.Printf("[DEBUG] Got previous version of changed project IAM policy: %s", string(ppBytes))
+
+		// Get the existing IAM policy from the API
+		ep, err := getProjectIamPolicy(pid, config)
+		if err != nil {
+			return fmt.Errorf("Error retrieving IAM policy from project API: %v", err)
+		}
+		epBytes, _ := json.Marshal(ep)
+		log.Printf("[DEBUG] Got existing version of changed IAM policy from project API: %s", string(epBytes))
+
+		// Subtract the previous and current policies from the policy retrieved from the API
+		rp := subtractIamPolicy(ep, pp)
+		rpBytes, _ := json.Marshal(rp)
+		log.Printf("[DEBUG] After subtracting the previous policy from the existing policy, remaining policies: %s", string(rpBytes))
+		rp = subtractIamPolicy(rp, p)
+		rpBytes, _ = json.Marshal(rp)
+		log.Printf("[DEBUG] After subtracting the remaining policies from the config policy, remaining policies: %s", string(rpBytes))
+		rps, err := json.Marshal(rp)
+		if err != nil {
+			return fmt.Errorf("Error marhsaling restorable IAM policy: %v", err)
+		}
+		d.SetNew("restore_policy", string(rps))
+
+		// Merge the policies together
+		mb := mergeBindings(append(p.Bindings, rp.Bindings...))
+		ep.Bindings = mb
+		if err = d.SetNew("complete_policy", ep); err != nil {
+			return fmt.Errorf("Error applying IAM policy to project: %v", err)
+		}
+	}
+
+	return nil
 }
 
 func resourceGoogleProjectIamPolicyCreate(d *schema.ResourceData, meta interface{}) error {
