@@ -65,7 +65,7 @@ func resourceGoogleProjectIamPolicy() *schema.Resource {
 func customDiffIamPolicy(d *schema.ResourceDiff, meta interface{}) error {
 	// Compute `complete_policy` and `restore_policy` fields at the plan phase
 	// as same logic as resourceGoogleProjectIamPolicyUpdate to see planned changes
-	log.Printf("[DEBUG]: Updating google_project_iam_policy")
+	log.Printf("[DEBUG]: Computing diff for google_project_iam_policy")
 	config := meta.(*Config)
 	pid, err := getProject(d, config)
 	if err != nil {
@@ -83,14 +83,14 @@ func customDiffIamPolicy(d *schema.ResourceDiff, meta interface{}) error {
 	// An authoritative policy is applied without regard for any existing IAM
 	// policy.
 	if v, ok := d.GetOk("authoritative"); ok && v.(bool) {
-		log.Printf("[DEBUG] Updating authoritative IAM policy for project %q", pid)
+		log.Printf("[DEBUG] Computing diff for authoritative IAM policy for project %q", pid)
 		err = d.SetNew("complete_policy", string(pBytes))
 		if err != nil {
-			return fmt.Errorf("Error setting project IAM policy: %v", err)
+			return fmt.Errorf("Error computing diff for project IAM policy: %v", err)
 		}
 		d.SetNew("restore_policy", "")
 	} else {
-		log.Printf("[DEBUG] Updating non-authoritative IAM policy for project %q", pid)
+		log.Printf("[DEBUG] Computing diff for non-authoritative IAM policy for project %q", pid)
 		// Get the previous policy from state
 		pp, err := getPrevResourceIamPolicy(d)
 		if err != nil {
@@ -125,7 +125,7 @@ func customDiffIamPolicy(d *schema.ResourceDiff, meta interface{}) error {
 		ep.Bindings = mb
 		epBytes, _ = json.Marshal(ep)
 		if err = d.SetNew("complete_policy", string(epBytes)); err != nil {
-			return fmt.Errorf("Error applying IAM policy to project: %v", err)
+			return fmt.Errorf("Error computing diff for IAM policy to project: %v", err)
 		}
 	}
 
