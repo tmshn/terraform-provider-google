@@ -84,7 +84,7 @@ func customDiffIamPolicy(d *schema.ResourceDiff, meta interface{}) error {
 	// policy.
 	if v, ok := d.GetOk("authoritative"); ok && v.(bool) {
 		log.Printf("[DEBUG] Updating authoritative IAM policy for project %q", pid)
-		err = d.SetNew("complete_policy", p)
+		err = d.SetNew("complete_policy", string(pBytes))
 		if err != nil {
 			return fmt.Errorf("Error setting project IAM policy: %v", err)
 		}
@@ -123,7 +123,8 @@ func customDiffIamPolicy(d *schema.ResourceDiff, meta interface{}) error {
 		// Merge the policies together
 		mb := mergeBindings(append(p.Bindings, rp.Bindings...))
 		ep.Bindings = mb
-		if err = d.SetNew("complete_policy", ep); err != nil {
+		epBytes, _ = json.Marshal(ep)
+		if err = d.SetNew("complete_policy", string(epBytes)); err != nil {
 			return fmt.Errorf("Error applying IAM policy to project: %v", err)
 		}
 	}
