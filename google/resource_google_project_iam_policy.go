@@ -84,7 +84,13 @@ func customDiffIamPolicy(d *schema.ResourceDiff, meta interface{}) error {
 	// policy.
 	if v, ok := d.GetOk("authoritative"); ok && v.(bool) {
 		log.Printf("[DEBUG] Computing diff for authoritative IAM policy for project %q", pid)
-		err = d.SetNew("complete_policy", string(pBytes))
+		newP := string(pBytes)
+		oldP, _ := d.GetChange("complete_policy")
+		if jsonPolicyDiffSuppress("", oldP.(string), newP, nil) {
+			err = d.Clear("complete_policy")
+		} else {
+			err = d.SetNew("complete_policy", newP)
+		}
 		if err != nil {
 			return fmt.Errorf("Error computing diff for project IAM policy: %v", err)
 		}
@@ -118,13 +124,29 @@ func customDiffIamPolicy(d *schema.ResourceDiff, meta interface{}) error {
 		if err != nil {
 			return fmt.Errorf("Error marhsaling restorable IAM policy: %v", err)
 		}
-		d.SetNew("restore_policy", string(rps))
+		newRp := string(rps)
+		oldRp, _ := d.GetChange("restore_policy")
+		if jsonPolicyDiffSuppress("", oldRp.(string), newRp, nil) {
+			err = d.Clear("restore_policy")
+		} else {
+			err = d.SetNew("restore_policy", newRp)
+		}
+		if err != nil {
+			return fmt.Errorf("Error setting diff for restore_policy: %v", err)
+		}
 
 		// Merge the policies together
 		mb := mergeBindings(append(p.Bindings, rp.Bindings...))
 		ep.Bindings = mb
 		epBytes, _ = json.Marshal(ep)
-		if err = d.SetNew("complete_policy", string(epBytes)); err != nil {
+		newEp := string(epBytes)
+		oldEp, _ := d.GetChange("complete_policy")
+		if jsonPolicyDiffSuppress("", oldEp.(string), newEp, nil) {
+			err = d.Clear("complete_policy")
+		} else {
+			err = d.SetNew("complete_policy", newEp)
+		}
+		if err != nil {
 			return fmt.Errorf("Error computing diff for IAM policy to project: %v", err)
 		}
 	}
@@ -458,9 +480,6 @@ func jsonPolicyDiffSuppress(k, old, new string, d *schema.ResourceData) bool {
 	}
 	oldPolicy.Bindings = mergeBindings(oldPolicy.Bindings)
 	newPolicy.Bindings = mergeBindings(newPolicy.Bindings)
-	if newPolicy.Etag != oldPolicy.Etag {
-		return false
-	}
 	if newPolicy.Version != oldPolicy.Version {
 		return false
 	}
